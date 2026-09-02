@@ -1,9 +1,9 @@
 /* ==================================================
    사용 가능한 DAY
 
-   새로운 DAY를 추가했을 때
-   data/day02.csv 파일을 넣고
-   아래 배열에 "day02"만 추가하면 됨.
+   새 DAY를 추가하면
+   data/day02.csv를 넣고
+   여기만 추가하면 됨.
 ================================================== */
 
 const availableDays = [
@@ -17,27 +17,94 @@ const availableDays = [
 
 
 /* ==================================================
-   변수
+   상태 변수
 ================================================== */
 
 let selectedDays = [];
 
 let loadedVocabData = {};
 
+
+/*
+현재 실제로 출제 중인 단어들
+*/
 let quizWords = [];
+
+
+/*
+현재 사이클을 시작할 때의 전체 단어 목록
+
+결과 화면에서
+"같은 단어 전체 다시 시험"
+버튼을 눌렀을 때 사용.
+*/
+let currentCycleBaseWords = [];
+
 
 let currentIndex = 0;
 
+
+/*
+현재 문제의 정답 의미들
+*/
 let currentCorrectAnswers = [];
 
+
+/*
+사용자가 현재 문제에서
+이미 맞게 선택한 의미들
+*/
 let selectedCorrectAnswers = [];
 
+
+/*
+오답 기록
+
+key:
+day01_dormant
+
+value:
+{
+    word,
+    day,
+    choices: [...]
+}
+*/
 let mistakes = {};
+
+
+/*
+SKIP 기록
+
+key:
+day01_dormant
+
+value:
+{
+    word,
+    day,
+    meanings: [...]
+}
+*/
+let skipped = {};
+
+
+/*
+현재 문제에서 SKIP이 눌렸는지
+*/
+let currentQuestionSkipped = false;
+
+
+/*
+현재 사이클 종료 후
+오답 + 스킵 단어 목록
+*/
+let currentWrongWords = [];
 
 
 
 /* ==================================================
-   HTML 요소 가져오기
+   HTML 요소
 ================================================== */
 
 const dayScreen =
@@ -65,6 +132,10 @@ const choicesElement =
 
 const progressElement =
     document.getElementById("progress");
+const answerCountElement =
+    document.getElementById("answerCount");
+const skipButton =
+    document.getElementById("skipButton");
 
 
 const perfectWordsElement =
@@ -73,9 +144,15 @@ const perfectWordsElement =
 const wrongWordsElement =
     document.getElementById("wrongWords");
 
+const skippedWordsElement =
+    document.getElementById("skippedWords");
+
 
 const retryButton =
     document.getElementById("retryButton");
+
+const wrongOnlyButton =
+    document.getElementById("wrongOnlyButton");
 
 const changeDayButton =
     document.getElementById("changeDayButton");
@@ -83,7 +160,7 @@ const changeDayButton =
 
 
 /* ==================================================
-   DAY 선택 버튼 만들기
+   DAY 버튼 생성
 ================================================== */
 
 function createDayButtons() {
@@ -97,45 +174,59 @@ function createDayButtons() {
             document.createElement("button");
 
 
-        button.classList.add("dayButton");
+        button.classList.add(
+            "dayButton"
+        );
 
 
         const dayNumber =
-            day.replace("day", "");
+            Number(
+                day.replace(
+                    "day",
+                    ""
+                )
+            );
 
 
         button.textContent =
-            "DAY " + Number(dayNumber);
+            "DAY " + dayNumber;
 
 
-        button.addEventListener("click", () => {
+        button.addEventListener(
+            "click",
 
-            button.classList.toggle("selected");
+            () => {
+
+                button.classList.toggle(
+                    "selected"
+                );
 
 
-            /* 이미 선택된 DAY라면 선택 해제 */
+                if (
+                    selectedDays.includes(day)
+                ) {
 
-            if (selectedDays.includes(day)) {
+                    selectedDays =
+                        selectedDays.filter(
+                            item =>
+                                item !== day
+                        );
 
-                selectedDays =
-                    selectedDays.filter(
-                        item => item !== day
-                    );
+                }
+
+                else {
+
+                    selectedDays.push(day);
+
+                }
 
             }
-
-            /* 선택되지 않은 DAY라면 추가 */
-
-            else {
-
-                selectedDays.push(day);
-
-            }
-
-        });
+        );
 
 
-        dayButtons.appendChild(button);
+        dayButtons.appendChild(
+            button
+        );
 
     });
 
@@ -155,9 +246,13 @@ startButton.addEventListener(
 
     async () => {
 
-        if (selectedDays.length === 0) {
+        if (
+            selectedDays.length === 0
+        ) {
 
-            alert("DAY를 하나 이상 선택해주세요.");
+            alert(
+                "DAY를 하나 이상 선택해주세요."
+            );
 
             return;
 
@@ -174,7 +269,20 @@ startButton.addEventListener(
 
             await loadSelectedDays();
 
-            prepareQuiz();
+
+            let words = [];
+
+
+            selectedDays.forEach(day => {
+
+                words.push(
+                    ...loadedVocabData[day]
+                );
+
+            });
+
+
+            startNewCycle(words);
 
         }
 
@@ -182,9 +290,10 @@ startButton.addEventListener(
 
             console.error(error);
 
+
             alert(
                 "단어 파일을 불러오지 못했습니다.\n" +
-                "Live Server로 실행 중인지 확인해주세요."
+                "CSV 파일 이름과 위치를 확인해주세요."
             );
 
         }
@@ -204,7 +313,7 @@ startButton.addEventListener(
 
 
 /* ==================================================
-   선택된 DAY의 CSV 불러오기
+   선택한 DAY CSV 불러오기
 ================================================== */
 
 async function loadSelectedDays() {
@@ -212,7 +321,9 @@ async function loadSelectedDays() {
     loadedVocabData = {};
 
 
-    for (const day of selectedDays) {
+    for (
+        const day of selectedDays
+    ) {
 
         const filePath =
             `data/${day}.csv`;
@@ -235,12 +346,11 @@ async function loadSelectedDays() {
             await response.text();
 
 
-        const vocab =
-            parseCSV(csvText, day);
-
-
         loadedVocabData[day] =
-            vocab;
+            parseCSV(
+                csvText,
+                day
+            );
 
     }
 
@@ -249,47 +359,43 @@ async function loadSelectedDays() {
 
 
 /* ==================================================
-   CSV → 단어 데이터로 변환
-
-   CSV 형식:
-
-   Word,Meaning,Synonyms,Example
-
-   Meaning 안에서
-   ; 를 기준으로 서로 다른 뜻으로 분리함.
-
-   예:
-   휴면 상태의, 잠자는; 잠재하는, 잠복 중인
-
-   ↓
-
-   [
-      "휴면 상태의, 잠자는",
-      "잠재하는, 잠복 중인"
-   ]
+   CSV → 단어 데이터
 ================================================== */
 
-function parseCSV(csvText, day) {
+function parseCSV(
+    csvText,
+    day
+) {
 
     const rows =
-        parseCSVRows(csvText);
+        parseCSVRows(
+            csvText
+        );
 
 
-    if (rows.length < 2) {
+    if (
+        rows.length < 2
+    ) {
 
         return [];
 
     }
 
 
-    /* 첫 줄의 BOM 제거 */
+    /*
+    UTF-8 BOM 제거
+    */
     rows[0][0] =
-        rows[0][0].replace(/^\uFEFF/, "");
+        rows[0][0].replace(
+            /^\uFEFF/,
+            ""
+        );
 
 
     const headers =
         rows[0].map(
-            header => header.trim()
+            header =>
+                header.trim()
         );
 
 
@@ -333,14 +439,18 @@ function parseCSV(csvText, day) {
 
 
         const word =
-            (row[wordIndex] || "").trim();
+            (row[wordIndex] || "")
+                .trim();
+
 
         const meaningText =
-            (row[meaningIndex] || "").trim();
+            (row[meaningIndex] || "")
+                .trim();
 
 
-        /* 빈 행 무시 */
-
+        /*
+        빈 행 무시
+        */
         if (
             word === ""
             ||
@@ -352,34 +462,20 @@ function parseCSV(csvText, day) {
         }
 
 
-        /* ; 기준으로 뜻 나누기 */
-
+        /*
+        서로 다른 뜻은 ; 기준으로 분리
+        */
         const meanings =
             meaningText
-
                 .split(";")
-
                 .map(
                     meaning =>
                         meaning.trim()
                 )
-
                 .filter(
                     meaning =>
                         meaning !== ""
                 );
-
-
-        const synonyms =
-            synonymIndex !== -1
-                ? (row[synonymIndex] || "").trim()
-                : "";
-
-
-        const example =
-            exampleIndex !== -1
-                ? (row[exampleIndex] || "").trim()
-                : "";
 
 
         vocab.push({
@@ -390,9 +486,15 @@ function parseCSV(csvText, day) {
 
             meanings: meanings,
 
-            synonyms: synonyms,
+            synonyms:
+                synonymIndex !== -1
+                    ? (row[synonymIndex] || "").trim()
+                    : "",
 
-            example: example
+            example:
+                exampleIndex !== -1
+                    ? (row[exampleIndex] || "").trim()
+                    : ""
 
         });
 
@@ -406,10 +508,7 @@ function parseCSV(csvText, day) {
 
 
 /* ==================================================
-   CSV 한 줄 파싱
-
-   쉼표가 들어 있는 셀이나
-   "따옴표"가 있는 CSV도 정상적으로 읽기 위함.
+   CSV parser
 ================================================== */
 
 function parseCSVRows(text) {
@@ -433,13 +532,11 @@ function parseCSVRows(text) {
             text[i];
 
 
-        /* 따옴표 안 */
-
         if (insideQuotes) {
 
-            if (char === '"') {
-
-                /* "" 는 실제 따옴표 하나 */
+            if (
+                char === '"'
+            ) {
 
                 if (
                     text[i + 1] === '"'
@@ -468,18 +565,20 @@ function parseCSVRows(text) {
         }
 
 
-        /* 따옴표 밖 */
-
         else {
 
-            if (char === '"') {
+            if (
+                char === '"'
+            ) {
 
                 insideQuotes = true;
 
             }
 
 
-            else if (char === ",") {
+            else if (
+                char === ","
+            ) {
 
                 row.push(value);
 
@@ -488,7 +587,9 @@ function parseCSVRows(text) {
             }
 
 
-            else if (char === "\n") {
+            else if (
+                char === "\n"
+            ) {
 
                 row.push(value);
 
@@ -501,14 +602,9 @@ function parseCSVRows(text) {
             }
 
 
-            else if (char === "\r") {
-
-                /* Windows 줄바꿈의 \r은 무시 */
-
-            }
-
-
-            else {
+            else if (
+                char !== "\r"
+            ) {
 
                 value += char;
 
@@ -518,8 +614,6 @@ function parseCSVRows(text) {
 
     }
 
-
-    /* 마지막 줄 */
 
     if (
         value !== ""
@@ -541,31 +635,19 @@ function parseCSVRows(text) {
 
 
 /* ==================================================
-   시험 준비
+   새 시험 사이클 시작
 ================================================== */
 
-function prepareQuiz() {
+function startNewCycle(words) {
 
-    quizWords = [];
-
-
-    selectedDays.forEach(day => {
-
-        if (loadedVocabData[day]) {
-
-            quizWords.push(
-                ...loadedVocabData[day]
-            );
-
-        }
-
-    });
-
-
-    if (quizWords.length === 0) {
+    if (
+        !words
+        ||
+        words.length === 0
+    ) {
 
         alert(
-            "선택한 DAY에 단어가 없습니다."
+            "시험 볼 단어가 없습니다."
         );
 
         return;
@@ -573,21 +655,45 @@ function prepareQuiz() {
     }
 
 
-    /* 단어 순서 랜덤 */
+    /*
+    현재 사이클 전체 목록 저장
+    */
+    currentCycleBaseWords =
+        [...words];
 
-    shuffleArray(quizWords);
+
+    /*
+    실제 출제 순서는 랜덤
+    */
+    quizWords =
+        [...words];
+
+
+    shuffleArray(
+        quizWords
+    );
 
 
     currentIndex = 0;
 
     mistakes = {};
 
+    skipped = {};
 
-    dayScreen.classList.add("hidden");
+    currentWrongWords = [];
 
-    resultScreen.classList.add("hidden");
 
-    quizScreen.classList.remove("hidden");
+    dayScreen.classList.add(
+        "hidden"
+    );
+
+    resultScreen.classList.add(
+        "hidden"
+    );
+
+    quizScreen.classList.remove(
+        "hidden"
+    );
 
 
     showQuestion();
@@ -597,7 +703,7 @@ function prepareQuiz() {
 
 
 /* ==================================================
-   문제 보여주기
+   문제 출력
 ================================================== */
 
 function showQuestion() {
@@ -618,50 +724,70 @@ function showQuestion() {
         [...currentWord.meanings];
 
 
-    selectedCorrectAnswers = [];
+    selectedCorrectAnswers =
+        [];
+    updateAnswerCount();
+
+    currentQuestionSkipped =
+        false;
+
+
+    choicesElement.innerHTML =
+        "";
+
+
+    skipButton.disabled =
+        false;
+
+
+    skipButton.textContent =
+        "정답 보기 · SKIP";
 
 
     const options =
-        createOptions(currentWord);
+        createOptions(
+            currentWord
+        );
 
 
-    choicesElement.innerHTML = "";
+    options.forEach(
+        optionText => {
 
-
-    options.forEach(optionText => {
-
-        const button =
-            document.createElement("button");
-
-
-        button.classList.add("choice");
-
-
-        button.textContent =
-            optionText;
-
-
-        button.addEventListener(
-
-            "click",
-
-            () => {
-
-                selectChoice(
-                    button,
-                    optionText
+            const button =
+                document.createElement(
+                    "button"
                 );
 
-            }
 
-        );
+            button.classList.add(
+                "choice"
+            );
 
 
-        choicesElement.appendChild(
-            button
-        );
+            button.textContent =
+                optionText;
 
-    });
+
+            button.addEventListener(
+                "click",
+
+                () => {
+
+                    selectChoice(
+                        button,
+                        optionText
+                    );
+
+                }
+            );
+
+
+            choicesElement.appendChild(
+                button
+            );
+
+        }
+    );
 
 }
 
@@ -671,70 +797,72 @@ function showQuestion() {
    5지선다 생성
 ================================================== */
 
-function createOptions(currentWord) {
+function createOptions(
+    currentWord
+) {
 
     /*
-       현재 단어의 모든 정답을 먼저 넣음.
+    현재 단어의 정답 전체를 먼저 넣음.
+    절대로 정답을 잘라내지 않음.
     */
-
     let options =
         [...currentWord.meanings];
 
 
     /*
-       만약 한 단어에 뜻이 5개보다 많으면
-       현재 방식의 5지선다로 만들 수 없으므로
-       경고 출력
+    정답 개수 + 오답 3개.
+    단, 전체 선택지는 최소 5개.
     */
 
-    if (options.length > 5) {
-
-        console.warn(
-            `${currentWord.word}의 뜻이 5개보다 많습니다.`
+    const targetOptionCount =
+        Math.max(
+            5,
+            currentWord.meanings.length + 3
         );
 
 
-        options =
-            options.slice(0, 5);
-
-    }
-
-
-    let distractorPool = [];
+    let distractorPool =
+        [];
 
 
     /*
-       선택한 DAY들의 다른 단어 뜻을
-       오답 후보로 모음
+    현재 시험에 포함된 다른 단어들의 뜻을
+    오답 후보로 모음.
     */
 
-    quizWords.forEach(item => {
+    quizWords.forEach(
+        item => {
 
-        if (
-            item !== currentWord
-        ) {
+            if (
+                item !== currentWord
+            ) {
 
-            item.meanings.forEach(
-                meaning => {
+                item.meanings.forEach(
+                    meaning => {
 
-                    if (
-                        !options.includes(meaning)
-                        &&
-                        !distractorPool.includes(meaning)
-                    ) {
+                        if (
+                            !options.includes(
+                                meaning
+                            )
+                            &&
+                            !distractorPool.includes(
+                                meaning
+                            )
+                        ) {
 
-                        distractorPool.push(
-                            meaning
-                        );
+                            distractorPool.push(
+                                meaning
+                            );
+
+                        }
 
                     }
+                );
 
-                }
-            );
+            }
 
         }
-
-    });
+    );
 
 
     shuffleArray(
@@ -743,12 +871,11 @@ function createOptions(currentWord) {
 
 
     /*
-       선택지가 총 5개가 될 때까지
-       오답 추가
+    필요한 만큼 오답 추가
     */
 
     while (
-        options.length < 5
+        options.length < targetOptionCount
         &&
         distractorPool.length > 0
     ) {
@@ -760,7 +887,13 @@ function createOptions(currentWord) {
     }
 
 
-    shuffleArray(options);
+    /*
+    최종 선택지 랜덤 배치
+    */
+
+    shuffleArray(
+        options
+    );
 
 
     return options;
@@ -779,14 +912,16 @@ function selectChoice(
 ) {
 
     /*
-       이미 누른 선택지라면
-       다시 작동하지 않음
+    이미 눌렀던 선택지라면 무시
     */
-
     if (
-        button.classList.contains("correct")
+        button.classList.contains(
+            "correct"
+        )
         ||
-        button.classList.contains("wrong")
+        button.classList.contains(
+            "wrong"
+        )
     ) {
 
         return;
@@ -798,20 +933,31 @@ function selectChoice(
         quizWords[currentIndex];
 
 
-    const word =
-        currentWord.word;
+    const key =
+        getWordKey(
+            currentWord
+        );
 
 
 
-    /* -------------------------
-       정답 선택
-    ------------------------- */
+    /* ==========================
+       정답
+    ========================== */
 
     if (
         currentCorrectAnswers.includes(
             optionText
         )
     ) {
+
+        /*
+        SKIP 후 파란 힌트 상태였다면
+        파란색 제거
+        */
+        button.classList.remove(
+            "hint"
+        );
+
 
         button.classList.add(
             "correct"
@@ -828,19 +974,24 @@ function selectChoice(
                 optionText
             );
 
+            updateAnswerCount();
+
         }
 
 
         /*
-           정답을 전부 골랐다면
-           자동으로 다음 문제
+        정답을 전부 직접 클릭했으면
+        다음 문제로
         */
-
         if (
             selectedCorrectAnswers.length
             ===
             currentCorrectAnswers.length
         ) {
+
+            skipButton.disabled =
+                true;
+
 
             setTimeout(
                 () => {
@@ -858,9 +1009,9 @@ function selectChoice(
 
 
 
-    /* -------------------------
-       오답 선택
-    ------------------------- */
+    /* ==========================
+       오답
+    ========================== */
 
     else {
 
@@ -870,24 +1021,31 @@ function selectChoice(
 
 
         /*
-           같은 단어가 다른 DAY에도
-           존재할 가능성을 대비해
-           DAY + 단어를 기록 키로 사용
-        */
+        이미 SKIP한 문제라면
+        오답 기록은 남기지 않음.
 
-        const mistakeKey =
-            `${currentWord.day}_${word}`;
+        스킵이 최우선 분류이기 때문.
+        */
+        if (
+            currentQuestionSkipped
+        ) {
+
+            return;
+
+        }
 
 
         if (
-            !mistakes[mistakeKey]
+            !mistakes[key]
         ) {
 
-            mistakes[mistakeKey] = {
+            mistakes[key] = {
 
-                word: word,
+                word:
+                    currentWord.word,
 
-                day: currentWord.day,
+                day:
+                    currentWord.day,
 
                 choices: []
 
@@ -897,24 +1055,134 @@ function selectChoice(
 
 
         if (
-            !mistakes[
-                mistakeKey
-            ].choices.includes(
-                optionText
-            )
+            !mistakes[key]
+                .choices
+                .includes(
+                    optionText
+                )
         ) {
 
-            mistakes[
-                mistakeKey
-            ].choices.push(
-                optionText
-            );
+            mistakes[key]
+                .choices
+                .push(
+                    optionText
+                );
 
         }
 
     }
 
 }
+
+
+
+/* ==================================================
+   SKIP 버튼
+================================================== */
+
+skipButton.addEventListener(
+    "click",
+
+    () => {
+
+        /*
+        이미 SKIP을 눌렀다면 무시
+        */
+        if (
+            currentQuestionSkipped
+        ) {
+
+            return;
+
+        }
+
+
+        const currentWord =
+            quizWords[currentIndex];
+
+
+        const key =
+            getWordKey(
+                currentWord
+            );
+
+
+        currentQuestionSkipped =
+            true;
+
+
+        /*
+        스킵 기록
+        */
+        skipped[key] = {
+
+            word:
+                currentWord.word,
+
+            day:
+                currentWord.day,
+
+            meanings:
+                [...currentWord.meanings]
+
+        };
+
+
+        /*
+        SKIP이 최우선이므로
+        이 문제에서 이전에 누른 오답 기록 삭제
+        */
+        delete mistakes[key];
+
+
+        /*
+        현재 선택지 버튼 전체 확인
+        */
+        const buttons =
+            choicesElement.querySelectorAll(
+                ".choice"
+            );
+
+
+        buttons.forEach(
+            button => {
+
+                /*
+                아직 사용자가 직접 맞게 누르지 않은
+                정답 선택지만 파란색으로 표시
+                */
+                if (
+                    currentCorrectAnswers.includes(
+                        button.textContent
+                    )
+                    &&
+                    !button.classList.contains(
+                        "correct"
+                    )
+                ) {
+
+                    button.classList.add(
+                        "hint"
+                    );
+
+                }
+
+            }
+        );
+
+
+        /*
+        SKIP 버튼은 한 문제당 한 번만
+        */
+        skipButton.disabled =
+            true;
+
+
+        skipButton.textContent =
+            "정답이 표시되었습니다";
+
+    }
+);
 
 
 
@@ -956,6 +1224,7 @@ function showResults() {
         "hidden"
     );
 
+
     resultScreen.classList.remove(
         "hidden"
     );
@@ -967,121 +1236,348 @@ function showResults() {
     wrongWordsElement.innerHTML =
         "";
 
-
-    quizWords.forEach(item => {
-
-        const mistakeKey =
-            `${item.day}_${item.word}`;
+    skippedWordsElement.innerHTML =
+        "";
 
 
-        const div =
-            document.createElement("div");
+    currentWrongWords =
+        [];
 
 
-        div.classList.add(
-            "resultWord"
-        );
+    quizWords.forEach(
+        item => {
+
+            const key =
+                getWordKey(
+                    item
+                );
 
 
-        /* -------------------------
-           오답 선택 기록 없음
-        ------------------------- */
+            /*
+            ==========================
+            1순위: 스킵
+            ==========================
+            */
 
-        if (
-            !mistakes[mistakeKey]
-        ) {
+            if (
+                skipped[key]
+            ) {
 
-            div.innerHTML = `
-
-                <strong>
-                    ${item.word}
-                </strong>
-
-                <span style="
-                    color:#999;
-                    font-size:13px;
-                    margin-left:8px;
-                ">
-
-                    ${formatDay(item.day)}
-
-                </span>
-
-            `;
+                addSkippedResult(
+                    item
+                );
 
 
-            perfectWordsElement.appendChild(
-                div
+                currentWrongWords.push(
+                    item
+                );
+
+
+                return;
+
+            }
+
+
+            /*
+            ==========================
+            2순위: 오답
+            ==========================
+            */
+
+            if (
+                mistakes[key]
+            ) {
+
+                addWrongResult(
+                    item,
+                    mistakes[key]
+                );
+
+
+                currentWrongWords.push(
+                    item
+                );
+
+
+                return;
+
+            }
+
+
+            /*
+            ==========================
+            3순위: 완벽
+            ==========================
+            */
+
+            addPerfectResult(
+                item
             );
 
         }
+    );
 
 
-        /* -------------------------
-           오답 선택 기록 있음
-        ------------------------- */
 
-        else {
+    /*
+    비어 있는 카테고리 표시
+    */
 
-            const wrongChoices =
-                mistakes[
-                    mistakeKey
-                ].choices;
+    if (
+        perfectWordsElement.children.length === 0
+    ) {
 
+        perfectWordsElement.innerHTML =
+            `<div class="emptyResult">
+                해당 단어가 없습니다.
+            </div>`;
 
-            div.innerHTML = `
-
-                <strong>
-                    ${item.word}
-                </strong>
-
-                <span style="
-                    color:#999;
-                    font-size:13px;
-                    margin-left:8px;
-                ">
-
-                    ${formatDay(item.day)}
-
-                </span>
+    }
 
 
-                <div class="wrongChoiceText">
+    if (
+        wrongWordsElement.children.length === 0
+    ) {
 
-                    잘못 선택:
-                    ${wrongChoices.join(", ")}
+        wrongWordsElement.innerHTML =
+            `<div class="emptyResult">
+                해당 단어가 없습니다.
+            </div>`;
 
-                </div>
-
-            `;
+    }
 
 
-            wrongWordsElement.appendChild(
-                div
-            );
+    if (
+        skippedWordsElement.children.length === 0
+    ) {
 
-        }
+        skippedWordsElement.innerHTML =
+            `<div class="emptyResult">
+                해당 단어가 없습니다.
+            </div>`;
 
-    });
+    }
+
+
+    /*
+    틀린/스킵 단어가 하나도 없으면
+    오답 재시험 버튼 비활성화
+    */
+    wrongOnlyButton.disabled =
+        currentWrongWords.length === 0;
 
 }
 
 
 
 /* ==================================================
-   같은 DAY 다시 시험
+   완벽 단어 결과 출력
+================================================== */
+
+function addPerfectResult(
+    item
+) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.classList.add(
+        "resultWord"
+    );
+
+
+    div.innerHTML = `
+
+        <strong>
+            ${escapeHTML(item.word)}
+        </strong>
+
+        <span class="dayLabel">
+            ${formatDay(item.day)}
+        </span>
+
+    `;
+
+
+    perfectWordsElement.appendChild(
+        div
+    );
+
+}
+
+
+
+/* ==================================================
+   오답 단어 결과 출력
+================================================== */
+
+function addWrongResult(
+    item,
+    mistakeInfo
+) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.classList.add(
+        "resultWord"
+    );
+
+
+    const wrongChoices =
+        mistakeInfo.choices
+            .map(
+                choice =>
+                    escapeHTML(choice)
+            )
+            .join(", ");
+
+
+    div.innerHTML = `
+
+        <strong>
+            ${escapeHTML(item.word)}
+        </strong>
+
+        <span class="dayLabel">
+            ${formatDay(item.day)}
+        </span>
+
+
+        <div class="wrongChoiceText">
+
+            잘못 선택:
+            ${wrongChoices}
+
+        </div>
+
+    `;
+
+
+    wrongWordsElement.appendChild(
+        div
+    );
+
+}
+
+
+
+/* ==================================================
+   스킵 단어 결과 출력
+================================================== */
+
+function addSkippedResult(
+    item
+) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.classList.add(
+        "resultWord"
+    );
+
+
+    const meaningText =
+        item.meanings
+            .map(
+                meaning =>
+                    escapeHTML(meaning)
+            )
+            .join(" / ");
+
+
+    div.innerHTML = `
+
+        <strong>
+            ${escapeHTML(item.word)}
+        </strong>
+
+        <span class="dayLabel">
+            ${formatDay(item.day)}
+        </span>
+
+
+        <div class="skippedMeaning">
+
+            뜻:
+            ${meaningText}
+
+        </div>
+
+    `;
+
+
+    skippedWordsElement.appendChild(
+        div
+    );
+
+}
+
+
+
+/* ==================================================
+   같은 단어 전체 다시 시험
 ================================================== */
 
 retryButton.addEventListener(
-
     "click",
 
     () => {
 
-        prepareQuiz();
+        startNewCycle(
+            currentCycleBaseWords
+        );
 
     }
+);
 
+
+
+/* ==================================================
+   틀린 / 스킵 단어만 다시 시험
+================================================== */
+
+wrongOnlyButton.addEventListener(
+    "click",
+
+    () => {
+
+        if (
+            currentWrongWords.length === 0
+        ) {
+
+            return;
+
+        }
+
+
+        /*
+        현재 틀린/스킵 단어 목록을
+        다음 사이클의 전체 목록으로 삼음.
+
+        그래서 그 사이클이 끝난 뒤
+        "같은 단어 전체 다시 시험"
+        을 누르면 바로 이 오답 묶음 전체가 다시 나옴.
+
+        또 다시
+        "틀린/스킵 단어만 다시 시험"
+        을 누르면 그중에서도 또 틀린 것만 나옴.
+        */
+        startNewCycle(
+            currentWrongWords
+        );
+
+    }
 );
 
 
@@ -1091,7 +1587,6 @@ retryButton.addEventListener(
 ================================================== */
 
 changeDayButton.addEventListener(
-
     "click",
 
     () => {
@@ -1100,21 +1595,48 @@ changeDayButton.addEventListener(
             "hidden"
         );
 
+
+        quizScreen.classList.add(
+            "hidden"
+        );
+
+
         dayScreen.classList.remove(
             "hidden"
         );
 
     }
-
 );
 
 
 
 /* ==================================================
-   DAY 표시 예쁘게
+   단어 고유 키
 ================================================== */
 
-function formatDay(day) {
+function getWordKey(
+    item
+) {
+
+    return (
+        item.day
+        +
+        "_"
+        +
+        item.word
+    );
+
+}
+
+
+
+/* ==================================================
+   DAY 표시
+================================================== */
+
+function formatDay(
+    day
+) {
 
     const number =
         Number(
@@ -1132,10 +1654,12 @@ function formatDay(day) {
 
 
 /* ==================================================
-   배열 랜덤 섞기
+   배열 섞기
 ================================================== */
 
-function shuffleArray(array) {
+function shuffleArray(
+    array
+) {
 
     for (
         let i =
@@ -1165,5 +1689,50 @@ function shuffleArray(array) {
         ];
 
     }
+
+}
+
+
+
+/* ==================================================
+   HTML 문자열 안전 처리
+================================================== */
+
+function escapeHTML(
+    text
+) {
+
+    return String(text)
+
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
+}
+function updateAnswerCount() {
+
+    answerCountElement.textContent =
+        `정답 ${currentCorrectAnswers.length}개 · 선택 ${selectedCorrectAnswers.length} / ${currentCorrectAnswers.length}`;
 
 }
