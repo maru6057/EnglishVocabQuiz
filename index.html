@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>영단어 퀴즈</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- DAY 선택 화면 -->
+    <section id="dayScreen">
+
+        <h1>영단어 퀴즈</h1>
+
+        <p class="description">
+            시험 볼 DAY를 선택하세요.
+            여러 DAY를 동시에 선택할 수도 있습니다.
+        </p>
+
+        <div id="dayButtons"></div>
+
+        <button id="startButton">
+            START
+        </button>
+
+    </section>
+
+
+    <!-- 퀴즈 화면 -->
+    <section id="quizScreen" class="hidden">
+
+        <div class="topInfo">
+
+            <span id="progress">
+                1 / 10
+            </span>
+
+        </div>
+
+        <div class="wordBox">
+
+            <div id="word">
+                dormant
+            </div>
+
+        </div>
+
+
+        <p class="questionText">
+            해당하는 뜻을 모두 고르세요.
+        </p>
+
+
+        <div id="choices"></div>
+
+    </section>
+
+
+    <!-- 결과 화면 -->
+    <section id="resultScreen" class="hidden">
+
+        <h1>시험 결과</h1>
+
+
+        <div class="resultCategory correctCategory">
+
+            <h2>✓ 한 번에 맞힌 단어</h2>
+
+            <div id="perfectWords"></div>
+
+        </div>
+
+
+        <div class="resultCategory wrongCategory">
+
+            <h2>✕ 틀린 선택지를 고른 단어</h2>
+
+            <div id="wrongWords"></div>
+
+        </div>
+
+
+        <div class="resultButtons">
+
+            <button id="retryButton">
+                같은 DAY 다시 시험
+            </button>
+
+            <button id="changeDayButton">
+                다른 DAY 선택
+            </button>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>

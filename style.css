@@ -1,0 +1,279 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, "Noto Sans KR", sans-serif;
+
+    background-color: #f5f6f8;
+    color: #222;
+}
+
+
+.container {
+    width: 700px;
+    max-width: 90%;
+
+    margin: 70px auto;
+}
+
+
+h1 {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+
+.description {
+    text-align: center;
+    color: #666;
+
+    margin-bottom: 30px;
+}
+
+
+.hidden {
+    display: none;
+}
+
+
+
+/* --------------------
+   DAY 선택
+-------------------- */
+
+#dayButtons {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: 10px;
+
+    justify-content: center;
+
+    margin-bottom: 35px;
+}
+
+
+.dayButton {
+    border: 2px solid #ddd;
+
+    background: white;
+
+    padding: 12px 20px;
+
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    font-size: 16px;
+}
+
+
+.dayButton:hover {
+    border-color: #999;
+}
+
+
+.dayButton.selected {
+    background: #333;
+    color: white;
+
+    border-color: #333;
+}
+
+
+
+#startButton {
+    display: block;
+
+    margin: auto;
+
+    padding: 14px 45px;
+
+    font-size: 17px;
+
+    border: none;
+
+    border-radius: 10px;
+
+    background: #333;
+    color: white;
+
+    cursor: pointer;
+}
+
+
+
+/* --------------------
+   퀴즈
+-------------------- */
+
+.topInfo {
+    text-align: right;
+
+    color: #777;
+
+    margin-bottom: 15px;
+}
+
+
+.wordBox {
+    background: white;
+
+    padding: 50px 30px;
+
+    text-align: center;
+
+    border-radius: 16px;
+
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+
+#word {
+    font-size: 38px;
+    font-weight: bold;
+}
+
+
+.questionText {
+    text-align: center;
+
+    margin: 30px 0 20px;
+
+    color: #666;
+}
+
+
+
+#choices {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 12px;
+}
+
+
+.choice {
+    width: 100%;
+
+    padding: 17px 20px;
+
+    border: 2px solid #ddd;
+
+    border-radius: 12px;
+
+    background: white;
+
+    font-size: 16px;
+
+    text-align: left;
+
+    cursor: pointer;
+
+    transition: 0.15s;
+}
+
+
+.choice:hover {
+    border-color: #999;
+}
+
+
+/* 정답 */
+.choice.correct {
+    background: #dff5e5;
+
+    border-color: #46a35e;
+
+    color: #246c37;
+}
+
+
+/* 오답 */
+.choice.wrong {
+    background: #fde2e2;
+
+    border-color: #d9534f;
+
+    color: #9d2925;
+}
+
+
+
+/* --------------------
+   결과
+-------------------- */
+
+.resultCategory {
+    background: white;
+
+    padding: 25px;
+
+    border-radius: 15px;
+
+    margin-top: 25px;
+}
+
+
+.resultCategory h2 {
+    margin-top: 0;
+}
+
+
+.resultWord {
+    padding: 12px 0;
+
+    border-bottom: 1px solid #eee;
+}
+
+
+.resultWord:last-child {
+    border-bottom: none;
+}
+
+
+.wrongChoiceText {
+    color: #d34a45;
+
+    margin-top: 5px;
+
+    font-size: 14px;
+}
+
+
+.resultButtons {
+    display: flex;
+
+    gap: 15px;
+
+    justify-content: center;
+
+    margin-top: 30px;
+}
+
+
+.resultButtons button {
+    padding: 14px 22px;
+
+    border: none;
+
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    font-size: 15px;
+}
+
+
+#retryButton {
+    background: #333;
+    color: white;
+}
+
+
+#changeDayButton {
+    background: #ddd;
+}
