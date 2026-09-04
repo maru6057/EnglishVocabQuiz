@@ -8,11 +8,8 @@
 
 const availableDays = [
     "day01",
-    "day02"
-
-    // 나중에:
-    // "day02",
-    // "day03",
+    "day02",
+    "day03"
 ];
 
 
