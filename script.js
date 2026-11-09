@@ -17,7 +17,8 @@ const availableDays = [
     "day08",
     "day09",
     "day20",
-    "day21"
+    "day21",
+    "day22"
 ];
 
 
