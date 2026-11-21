@@ -35,7 +35,11 @@ const availableDays = [
     "day26",
     "day27",
     "day28",
-    "day29"
+    "day29",
+    "day30",
+    "day31",
+    "day32",
+    "day33"
 ];
 
 
