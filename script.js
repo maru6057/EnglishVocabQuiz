@@ -39,7 +39,9 @@ const availableDays = [
     "day30",
     "day31",
     "day32",
-    "day33"
+    "day33",
+    "day34",
+    "day35"
 ];
 
 
@@ -493,17 +495,21 @@ function parseCSV(
         /*
         서로 다른 뜻은 ; 기준으로 분리
         */
-        const meanings =
-            meaningText
-                .split(";")
-                .map(
-                    meaning =>
-                        meaning.trim()
-                )
-                .filter(
-                    meaning =>
-                        meaning !== ""
-                );
+        const dayNumber = Number(day.replace("day", ""));
+
+const separator = dayNumber >= 34 ? "|" : ";";
+
+const meanings =
+    meaningText
+        .split(separator)
+        .map(
+            meaning =>
+                meaning.trim()
+        )
+        .filter(
+            meaning =>
+                meaning !== ""
+        );
 
 
         vocab.push({
